@@ -14,6 +14,8 @@ Output: paper/figs/fig4_pareto.pdf
 
 import os
 
+os.environ.setdefault("SOURCE_DATE_EPOCH", "0")  # byte-reproducible PDFs
+
 import matplotlib
 
 matplotlib.use("Agg")
