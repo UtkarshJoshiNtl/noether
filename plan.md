@@ -56,13 +56,26 @@ Branch: `alpha` (legacy Astrosis stays on `main`). Engine name: **noether**
   - CTest `test_cuda` (skips 77 w/o device): reduction == long-double oracle,
     fixed/kahan bitwise-stable over 100 repeats, atomic spread recorded,
     unity-sum exactness, GPU/CPU trajectory agreement, GPU 7-day ΔH/H₀ bound
-- [ ] **P3 — Experiments → CSVs in `paper/results/`**
-  - E1 `drift`: RK4 vs Verlet vs Yoshida, ΔH/H₀ vs t, dt sweep (24 h + 7 d)
-  - E2 `reduce`: modes × N=2^10..2^24 × R=100 — bitwise-repeatability + spread
-  - E3: 7-day Verlet with each diagnostic reduction mode → noise floor vs
-    symplectic bounded oscillation
-  - E4: fp64 / fp32 / fp32+Kahan kick — drift vs ns/step Pareto
-  - `scripts/run_experiments.sh` regenerates everything
+- [x] **P3 — Experiments → CSVs in `paper/results/`** (44 files, ~90 s via
+      `scripts/run_experiments.sh`; all measured on RTX 2050)
+  - E1 `drift` (CPU, dt {10,20,40}, 24 h + 7 d, 18 files): 7 d @ dt=10
+      ΔH/H₀ max — RK4 3.56e-9, Verlet 1.04e-7, Yoshida4 2.88e-11
+  - E2 `reduce` (n=2^10..2^24 × {lcg, adversarial} × 6 modes × R=100,
+      9600 rows): atomic/fp64 13 unique values vs fixed 1 at n=2^20;
+      adversarial input → fp32 sums collapse to exactly 0 at every n
+      (100% error) while fp64 stays exact
+  - E3 (7 d, n=4096, 7 files): fp64 modes resolve the ~1e-7 symplectic
+      oscillation; fp32 accumulator quantization floor (ULP(H≈1.2e5)=0.0078
+      → dh quanta 6.5e-8 ≥ signal) buries it — fixed/kahan tick at quantum
+      boundaries, atomic pins one value for the whole run
+  - E4 accuracy (7 d, dt {5,10,20,40}, 12 files): fp32k beats fp32 at every
+      dt (dt=10: 6.48e-6 vs 2.73e-5 = 4.2×); fp32 error *falls* with larger
+      dt (per-step rounding accumulation dominates truncation — honest
+      inversion of the classical dt rule); fp64 2.69e-8 (dt=5) → 1.18e-6
+  - E4 throughput (`e4_bench.csv`, n=2^20): fp64 4.816 ms/step,
+      fp32 0.483 ms (9.98×), fp32k 0.724 ms (6.65×)
+  - Prerequisite landed first: force/integrators templated on scalar type
+      (double path verified bit-identical vs pre-refactor references)
 - [ ] **P4 — Figures**: `analysis/fig*.py` (numpy/matplotlib, NOT in build)
   → `paper/figs/*.pdf`
 - [ ] **P5 — Paper**: `paper/main.tex` (IEEEtran 4 pp): Intro / Background /
