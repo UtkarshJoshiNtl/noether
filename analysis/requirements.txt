@@ -1,0 +1,3 @@
+# Figure generation only — not part of the engine build.
+matplotlib>=3.8
+numpy>=1.26

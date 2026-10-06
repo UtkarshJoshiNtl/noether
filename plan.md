@@ -76,8 +76,17 @@ Branch: `alpha` (legacy Astrosis stays on `main`). Engine name: **noether**
       fp32 0.483 ms (9.98×), fp32k 0.724 ms (6.65×)
   - Prerequisite landed first: force/integrators templated on scalar type
       (double path verified bit-identical vs pre-refactor references)
-- [ ] **P4 — Figures**: `analysis/fig*.py` (numpy/matplotlib, NOT in build)
-  → `paper/figs/*.pdf`
+- [x] **P4 — Figures**: `analysis/fig{1..4}_*.py` (numpy/matplotlib, NOT in
+      build; `analysis/requirements.txt`) → `paper/figs/*.pdf`
+  - fig1_drift: 2 panels (dt=10/40), |ΔH/H₀| 7 d — RK4 secular growth
+      (5.2e-7→3.6e-6 daily envelope at dt=40) vs bounded Verlet/Yoshida bands
+  - fig2_reduce: 3 panels — (a) lcg accuracy ladder fp64 ~1e-16 vs fp32
+      ~5e-8, (b) adversarial cliff (fp32 rel err 1.0 flat, fp64 exact),
+      (c) determinism: atomic uniques 1→42 with n, fixed/Kahan pinned at 1
+  - fig3_noise: first 24 h of E3 — fp64 triple tracks the CPU reference;
+      fp32 staircase at the ±6.486e-8 ULP quantum, atomic/fp32 flat at 0
+  - fig4_pareto: max|ΔH/H₀| vs ns/step — vertical accuracy bands per
+      precision at fixed throughput + CPU verlet star
 - [ ] **P5 — Paper**: `paper/main.tex` (IEEEtran 4 pp): Intro / Background /
   Kernels / Setup (RTX 2050, CUDA 12.9, g++ 14) / Results / Threats /
   Conclusion + artifact appendix (3-command repro). Every number traceable
