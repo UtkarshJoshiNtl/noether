@@ -14,7 +14,6 @@
 
 #ifdef NOETHER_USE_CUDA
 #include "core/cuda/api.hpp"
-#endif
 
 using namespace noether;
 
@@ -82,6 +81,7 @@ std::vector<double> make_input(const std::string& kind, std::size_t n, std::uint
 }
 
 }  // namespace
+#endif  // NOETHER_USE_CUDA
 
 int cmd_reduce(int argc, char** argv) {
 #ifndef NOETHER_USE_CUDA
