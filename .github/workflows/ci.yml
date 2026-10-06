@@ -2,54 +2,16 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
-    branches: [main]
 
 jobs:
-  lint:
+  build-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e .[dev]
-      - run: flake8 astrosis/
-      - run: black --check astrosis/
-      - run: mypy astrosis/ --ignore-missing-imports || true
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e .[dev]
-      - run: pytest tests/ -v
-
-  cpp:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: pip install pybind11
-      - run: sudo apt-get update && sudo apt-get install -y cmake build-essential
-      - name: Get pybind11 cmake dir
-        run: echo "pybind11_DIR=$(python -c 'import pybind11; print(pybind11.get_cmake_dir())')" >> $GITHUB_ENV
-      - run: cmake -S cpp -B cpp/build -DUSE_CUDA=OFF -Dpybind11_DIR=${{ env.pybind11_DIR }}
-      - run: cmake --build cpp/build -- -j$(nproc)
-
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install build twine
-      - run: python -m build
-      - run: python -m twine check dist/*
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DNOETHER_USE_CUDA=OFF
+      - name: Build
+        run: cmake --build build -j
+      - name: Test
+        run: ctest --test-dir build --output-on-failure

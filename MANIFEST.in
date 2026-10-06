@@ -1,5 +1,0 @@
-include README.md
-include LICENSE
-recursive-include astrosis *.py
-recursive-include astrosis *.pyi
-recursive-include astrosis/data *.txt

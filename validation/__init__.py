@@ -1,1 +1,0 @@
-"""Validation suite package."""
