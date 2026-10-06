@@ -27,7 +27,9 @@ Branch: `alpha` (legacy Astrosis stays on `main`). Engine name: **noether**
   CMakeLists (C++20, CUDA auto-detect sm_75/80/86/89, OpenMP, CTest),
   `core/constants.hpp`, `main.cpp` usage stub, `.clang-format`, CI →
   cmake+ctest, pre-commit → clang-format + hygiene. Build green, committed.
-- [ ] **P1 — Host core**
+- [x] **P1 — Host core** (committed `91d2bb4`; measured: order ratios
+      RK4 16.59×, Verlet 4.00×, Yoshida 15.98×; 7-day ΔH/H₀: RK4 3.6e-9,
+      Verlet 1.8e-7, Yoshida 4.9e-11)
   - `core/force.hpp`: `gravity_accel`, `potential` Φ, `hamiltonian` (½v²+Φ)
   - `core/integrators.hpp`: `rk4_step`, `verlet_step` (kick-drift-kick),
     `yoshida_step` (4th-order composition)

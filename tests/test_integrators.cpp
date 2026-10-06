@@ -99,9 +99,9 @@ int main() {
         double energy_bound;
     };
     const Case cases[] = {
-        {rk4_step, "rk4", 12.0, 1e-7},           // measured 3.6e-9 @ dt=10s / 7 d
-        {verlet_step, "verlet", 3.0, 1e-6},      // measured 1.8e-7
-        {yoshida_step, "yoshida4", 12.0, 1e-8},  // measured 4.9e-11
+        {rk4_step, "rk4", 14.0, 1e-7},   // measured 16.59× / 3.6e-9 @ dt=10s / 7 d
+        {verlet_step, "verlet", 3.5, 1e-6},  // measured 4.00× / 1.8e-7
+        {yoshida_step, "yoshida4", 14.0, 1e-8},  // measured 15.98× / 4.9e-11
     };
 
     for (const Case& c : cases) {
