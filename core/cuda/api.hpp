@@ -63,6 +63,45 @@ void step_yoshida(DeviceEnsemble& ens, double dt);
 // Per-particle Hamiltonians into the ensemble's energy buffer.
 void energies(DeviceEnsemble& ens);
 
+// fp32 mixed-precision ensemble (E4): state stored as float, force math in
+// float, optional persistent per-particle Kahan compensation on the velocity
+// kick (step_verlet_f32k). Energies are evaluated in fp64 from the fp32 state,
+// so diagnostics measure trajectory error, not diagnostic noise.
+class F32Ensemble {
+  public:
+    explicit F32Ensemble(std::size_t n);
+    explicit F32Ensemble(const std::vector<State>& h);
+
+    void upload(const std::vector<State>& h);    // casts to float; zeroes kick comps
+    void download(std::vector<State>& h) const;  // casts back to double
+
+    std::size_t size() const { return n_; }
+
+    float* x() { return x_.data(); }
+    float* y() { return y_.data(); }
+    float* z() { return z_.data(); }
+    float* vx() { return vx_.data(); }
+    float* vy() { return vy_.data(); }
+    float* vz() { return vz_.data(); }
+    float* cx() { return cx_.data(); }
+    float* cy() { return cy_.data(); }
+    float* cz() { return cz_.data(); }
+    double* energy() { return e_.data(); }
+
+  private:
+    std::size_t n_ = 0;
+    DeviceMem<float> x_, y_, z_, vx_, vy_, vz_;
+    DeviceMem<float> cx_, cy_, cz_;  // Kahan kick compensation, persistent
+    DeviceMem<double> e_;
+};
+
+// One fp32 step over the whole ensemble (asynchronous on the null stream).
+void step_verlet_f32(F32Ensemble& ens, double dt);   // plain fp32 kick
+void step_verlet_f32k(F32Ensemble& ens, double dt);  // Kahan-compensated kick
+
+void energies(F32Ensemble& ens);
+double energy_sum(F32Ensemble& ens, ReduceMode mode, ReducePrec prec, int atomic_streams = 1);
+
 // Reduction over an arbitrary device array. Synchronizes; returns the host value.
 double reduce(const double* d_in, std::size_t n, ReduceMode mode, ReducePrec prec,
               int atomic_streams = 1);

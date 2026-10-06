@@ -2,6 +2,8 @@
 //
 //   k_verlet_soa / k_rk4_soa / k_yoshida_soa — SoA integrator steps (the
 //     force/integrator math is shared with the host via NOETHER_HD annotations)
+//   k_verlet_f32 / k_verlet_f32k — fp32 state; the latter adds persistent
+//     per-particle Kahan compensation on the velocity kick (E4)
 //   k_energy        — per-particle Hamiltonian evaluation
 //   k_partial       — block-shared fixed tree (plain or per-thread Kahan)
 //   k_halve         — deterministic out-of-place tree pass (fixed reduction)
@@ -99,6 +101,85 @@ __global__ void k_energy(const double* __restrict__ x, const double* __restrict_
     if (i >= n)
         return;
     e[i] = hamiltonian(x[i], y[i], z[i], vx[i], vy[i], vz[i]);
+}
+
+// ── fp32 mixed-precision integrators (E4) ────────────────────────────────────
+
+// Plain fp32 velocity Verlet — same function the host would run for T=float.
+__global__ void k_verlet_f32(float* __restrict__ x, float* __restrict__ y, float* __restrict__ z,
+                             float* __restrict__ vx, float* __restrict__ vy, float* __restrict__ vz,
+                             std::size_t n, float dt) {
+    std::size_t i = static_cast<std::size_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    if (i >= n)
+        return;
+    StateT<float> s{x[i], y[i], z[i], vx[i], vy[i], vz[i]};
+    s = verlet_step(s, dt);
+    x[i] = s.x;
+    y[i] = s.y;
+    z[i] = s.z;
+    vx[i] = s.vx;
+    vy[i] = s.vy;
+    vz[i] = s.vz;
+}
+
+// Velocity Verlet with the persistent velocity kick accumulated via Kahan
+// compensation: each particle carries cx,cy,cz across steps, so rounding bits
+// dropped by the fp32 kick are re-injected on the next step. The drift
+// (position update) stays plain fp32.
+template <bool KAHAN>
+__global__ void k_verlet_f32k(float* __restrict__ x, float* __restrict__ y, float* __restrict__ z,
+                              float* __restrict__ vx, float* __restrict__ vy,
+                              float* __restrict__ vz, float* __restrict__ cx,
+                              float* __restrict__ cy, float* __restrict__ cz, std::size_t n,
+                              float dt) {
+    std::size_t i = static_cast<std::size_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    if (i >= n)
+        return;
+    Vec3T<float> a1 = gravity_accel(x[i], y[i], z[i]);
+
+    float hx = x[i] + dt * (vx[i] + 0.5f * dt * a1.x);
+    float hy = y[i] + dt * (vy[i] + 0.5f * dt * a1.y);
+    float hz = z[i] + dt * (vz[i] + 0.5f * dt * a1.z);
+    Vec3T<float> a2 = gravity_accel(hx, hy, hz);
+
+    float ix = 0.5f * dt * (a1.x + a2.x);
+    float iy = 0.5f * dt * (a1.y + a2.y);
+    float iz = 0.5f * dt * (a1.z + a2.z);
+    if constexpr (KAHAN) {
+        float yx = ix - cx[i];
+        float tx = vx[i] + yx;
+        cx[i] = (tx - vx[i]) - yx;
+        vx[i] = tx;
+        float yy = iy - cy[i];
+        float ty = vy[i] + yy;
+        cy[i] = (ty - vy[i]) - yy;
+        vy[i] = ty;
+        float yz = iz - cz[i];
+        float tz = vz[i] + yz;
+        cz[i] = (tz - vz[i]) - yz;
+        vz[i] = tz;
+    } else {
+        vx[i] = vx[i] + ix;
+        vy[i] = vy[i] + iy;
+        vz[i] = vz[i] + iz;
+    }
+
+    x[i] = hx;
+    y[i] = hy;
+    z[i] = hz;
+}
+
+// Energies evaluated in fp64 from the fp32 state.
+__global__ void k_energy_f32(const float* __restrict__ x, const float* __restrict__ y,
+                             const float* __restrict__ z, const float* __restrict__ vx,
+                             const float* __restrict__ vy, const float* __restrict__ vz,
+                             double* __restrict__ e, std::size_t n) {
+    std::size_t i = static_cast<std::size_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+    if (i >= n)
+        return;
+    e[i] = hamiltonian(static_cast<double>(x[i]), static_cast<double>(y[i]),
+                       static_cast<double>(z[i]), static_cast<double>(vx[i]),
+                       static_cast<double>(vy[i]), static_cast<double>(vz[i]));
 }
 
 // ── Reductions ────────────────────────────────────────────────────────────────
@@ -427,6 +508,93 @@ double reduce(const double* d_in, std::size_t n, ReduceMode mode, ReducePrec pre
 }
 
 double energy_sum(DeviceEnsemble& ens, ReduceMode mode, ReducePrec prec, int atomic_streams) {
+    energies(ens);
+    return reduce(ens.energy(), ens.size(), mode, prec, atomic_streams);
+}
+
+// ── fp32 ensemble ────────────────────────────────────────────────────────────
+
+F32Ensemble::F32Ensemble(std::size_t n)
+    : n_(n), x_(n), y_(n), z_(n), vx_(n), vy_(n), vz_(n), cx_(n), cy_(n), cz_(n), e_(n) {}
+
+F32Ensemble::F32Ensemble(const std::vector<State>& h) : F32Ensemble(h.size()) {
+    upload(h);
+}
+
+void F32Ensemble::upload(const std::vector<State>& h) {
+    if (h.size() != n_)
+        throw std::range_error("F32Ensemble::upload size mismatch");
+    std::vector<float> buf(n_);
+    for (std::size_t i = 0; i < n_; ++i)
+        buf[i] = static_cast<float>(h[i].x);
+    x_.upload(buf);
+    for (std::size_t i = 0; i < n_; ++i)
+        buf[i] = static_cast<float>(h[i].y);
+    y_.upload(buf);
+    for (std::size_t i = 0; i < n_; ++i)
+        buf[i] = static_cast<float>(h[i].z);
+    z_.upload(buf);
+    for (std::size_t i = 0; i < n_; ++i)
+        buf[i] = static_cast<float>(h[i].vx);
+    vx_.upload(buf);
+    for (std::size_t i = 0; i < n_; ++i)
+        buf[i] = static_cast<float>(h[i].vy);
+    vy_.upload(buf);
+    for (std::size_t i = 0; i < n_; ++i)
+        buf[i] = static_cast<float>(h[i].vz);
+    vz_.upload(buf);
+    cx_.zero();  // Kahan compensation starts clean on every (re)upload
+    cy_.zero();
+    cz_.zero();
+}
+
+void F32Ensemble::download(std::vector<State>& h) const {
+    if (h.size() != n_)
+        h.resize(n_);
+    std::vector<float> bx = x_.download();
+    std::vector<float> by = y_.download();
+    std::vector<float> bz = z_.download();
+    std::vector<float> bxv = vx_.download();
+    std::vector<float> byv = vy_.download();
+    std::vector<float> bzv = vz_.download();
+    for (std::size_t i = 0; i < n_; ++i) {
+        h[i] = State{static_cast<double>(bx[i]),  static_cast<double>(by[i]),
+                     static_cast<double>(bz[i]),  static_cast<double>(bxv[i]),
+                     static_cast<double>(byv[i]), static_cast<double>(bzv[i])};
+    }
+}
+
+void step_verlet_f32(F32Ensemble& ens, double dt) {
+    std::size_t n = ens.size();
+    if (n == 0)
+        return;
+    int g = static_cast<int>((n + BLOCK - 1) / BLOCK);
+    k_verlet_f32<<<g, BLOCK>>>(ens.x(), ens.y(), ens.z(), ens.vx(), ens.vy(), ens.vz(), n,
+                               static_cast<float>(dt));
+    cuda_check(cudaGetLastError(), "verlet_f32 launch");
+}
+
+void step_verlet_f32k(F32Ensemble& ens, double dt) {
+    std::size_t n = ens.size();
+    if (n == 0)
+        return;
+    int g = static_cast<int>((n + BLOCK - 1) / BLOCK);
+    k_verlet_f32k<true><<<g, BLOCK>>>(ens.x(), ens.y(), ens.z(), ens.vx(), ens.vy(), ens.vz(),
+                                      ens.cx(), ens.cy(), ens.cz(), n, static_cast<float>(dt));
+    cuda_check(cudaGetLastError(), "verlet_f32k launch");
+}
+
+void energies(F32Ensemble& ens) {
+    std::size_t n = ens.size();
+    if (n == 0)
+        return;
+    int g = static_cast<int>((n + BLOCK - 1) / BLOCK);
+    k_energy_f32<<<g, BLOCK>>>(ens.x(), ens.y(), ens.z(), ens.vx(), ens.vy(), ens.vz(),
+                               ens.energy(), n);
+    cuda_check(cudaGetLastError(), "energy_f32 launch");
+}
+
+double energy_sum(F32Ensemble& ens, ReduceMode mode, ReducePrec prec, int atomic_streams) {
     energies(ens);
     return reduce(ens.energy(), ens.size(), mode, prec, atomic_streams);
 }

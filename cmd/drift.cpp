@@ -40,6 +40,8 @@ void usage_drift() {
         "  --red-mode atomic|fixed|kahan     GPU energy reduction mode (default: fixed)\n"
         "  --red-prec fp64|fp32            GPU reduction accumulator (default: fp64)\n"
         "  --red-streams <k>       Atomic reduction streams (default: 1)\n"
+        "  --precision fp64|fp32|fp32k     GPU state precision; fp32k adds Kahan\n"
+        "                           kick compensation; verlet only (default: fp64)\n"
         "  --config <file.json>    Load parameters from a JSON config\n"
         "  --help                  Show this message\n"
         "\n"
@@ -60,6 +62,7 @@ struct DriftParams {
     std::string red_mode = "fixed";
     std::string red_prec = "fp64";
     int red_streams = 1;
+    std::string precision = "fp64";  // GPU state precision: fp64 | fp32 | fp32k
 };
 
 using StepFn = State (*)(const State&, double);
@@ -175,6 +178,54 @@ DriftSeries compute_gpu(const DriftParams& p, int steps, int every, int nsamp) {
     }
     return out;
 }
+
+// fp32 state path (E4): same loop, F32Ensemble, verlet-only kernels.
+DriftSeries compute_gpu_f32(const DriftParams& p, int steps, int every, int nsamp) {
+    if (!cuda::available())
+        throw std::runtime_error("drift: no CUDA device (use --backend cpu)");
+    cuda::ReduceMode mode;
+    cuda::ReducePrec prec;
+    if (!cuda::parse_reduce_mode(p.red_mode, mode))
+        throw std::runtime_error("drift: unknown --red-mode (atomic|fixed|kahan)");
+    if (!cuda::parse_reduce_prec(p.red_prec, prec))
+        throw std::runtime_error("drift: unknown --red-prec (fp64|fp32)");
+    const bool kahan_kick = p.precision == "fp32k";
+
+    std::vector<State> states = make_ensemble(p.n, p.alt, p.inc);
+    const bool single = states.size() == 1;
+    cuda::F32Ensemble ens(states);
+
+    DriftSeries out;
+    out.hvals.assign(static_cast<std::size_t>(nsamp), 0.0);
+    out.snaps.resize(single ? static_cast<std::size_t>(nsamp) : 0);
+    out.hvals[0] = cuda::energy_sum(ens, mode, prec, p.red_streams);
+    if (single) {
+        std::vector<State> one(1);
+        ens.download(one);
+        out.snaps[0] = one[0];
+    }
+
+    int k = 0;
+    int j = 1;
+    while (k < steps) {
+        ++k;
+        if (kahan_kick)
+            cuda::step_verlet_f32k(ens, p.dt);
+        else
+            cuda::step_verlet_f32(ens, p.dt);
+        if (k % every == 0 && j < nsamp) {
+            out.hvals[static_cast<std::size_t>(j)] =
+                cuda::energy_sum(ens, mode, prec, p.red_streams);
+            if (single) {
+                std::vector<State> one(1);
+                ens.download(one);
+                out.snaps[static_cast<std::size_t>(j)] = one[0];
+            }
+            ++j;
+        }
+    }
+    return out;
+}
 #endif
 
 int run_drift(const DriftParams& p) {
@@ -183,12 +234,21 @@ int run_drift(const DriftParams& p) {
 
     if (p.backend != "cpu" && p.backend != "gpu")
         throw std::runtime_error("drift: unknown --backend (cpu|gpu)");
+    if (p.precision != "fp64" && p.precision != "fp32" && p.precision != "fp32k")
+        throw std::runtime_error("drift: unknown --precision (fp64|fp32|fp32k)");
+    if (p.precision != "fp64") {
+        if (p.backend != "gpu")
+            throw std::runtime_error("drift: --precision fp32/fp32k requires --backend gpu");
+        if (p.integrator != "verlet")
+            throw std::runtime_error("drift: --precision fp32/fp32k supports only verlet");
+    }
     const bool gpu = p.backend == "gpu";
 
     DriftSeries series;
     if (gpu) {
 #ifdef NOETHER_USE_CUDA
-        series = compute_gpu(p, steps, every, nsamp);
+        series = p.precision == "fp64" ? compute_gpu(p, steps, every, nsamp)
+                                       : compute_gpu_f32(p, steps, every, nsamp);
 #else
         throw std::runtime_error("drift: built without CUDA (use --backend cpu)");
 #endif
@@ -222,6 +282,7 @@ int run_drift(const DriftParams& p) {
         std::printf("red_mode     = %s\n", p.red_mode.c_str());
         std::printf("red_prec     = %s\n", p.red_prec.c_str());
         std::printf("red_streams  = %d\n", p.red_streams);
+        std::printf("precision    = %s\n", p.precision.c_str());
     }
     std::printf("n            = %d\n", p.n);
     std::printf("steps        = %d\n", steps);
@@ -246,6 +307,7 @@ void apply_config(const Config& cfg, DriftParams& p) {
     p.red_mode = cfg.str("red_mode", p.red_mode);
     p.red_prec = cfg.str("red_prec", p.red_prec);
     p.red_streams = cfg.integer("red_streams", p.red_streams);
+    p.precision = cfg.str("precision", p.precision);
 }
 
 }  // namespace
@@ -290,6 +352,8 @@ int cmd_drift(int argc, char** argv) {
             p.red_prec = next("--red-prec");
         } else if (a == "--red-streams") {
             p.red_streams = std::stoi(next("--red-streams"));
+        } else if (a == "--precision") {
+            p.precision = next("--precision");
         } else {
             throw std::runtime_error("drift: unknown option '" + a + "' (try --help)");
         }

@@ -145,6 +145,30 @@ int cmd_bench(int argc, char** argv) {
         rows.push_back({"step", n, c.detail, ns, static_cast<double>(steps)});
     }
 
+    // fp32 mixed-precision variants (E4 speed axis).
+    cuda::F32Ensemble f32ens(states);
+    struct StepCaseF32 {
+        const char* detail;
+        void (*fn)(cuda::F32Ensemble&, double);
+    };
+    const StepCaseF32 step_cases_f32[] = {
+        {"gpu:verlet-fp32", cuda::step_verlet_f32},
+        {"gpu:verlet-fp32k", cuda::step_verlet_f32k},
+    };
+    for (const StepCaseF32& c : step_cases_f32) {
+        c.fn(f32ens, 10.0);
+        float best_ms = 1e30f;
+        for (int r = 0; r < repeats; ++r) {
+            cuda::GpuTimer timer;
+            timer.start();
+            for (int s = 0; s < steps; ++s)
+                c.fn(f32ens, 10.0);
+            best_ms = std::min(best_ms, timer.stop_ms());
+        }
+        double ns = static_cast<double>(best_ms) * 1e6 / steps;
+        rows.push_back({"step", n, c.detail, ns, static_cast<double>(steps)});
+    }
+
     struct RedCase {
         std::string detail;
         cuda::ReduceMode mode;
