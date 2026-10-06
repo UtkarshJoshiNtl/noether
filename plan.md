@@ -96,8 +96,19 @@ Branch: `alpha` (legacy Astrosis stays on `main`). Engine name: **noether**
       overfull boxes; figure span-overlap audit clean (fixed fig3
       legend/quantum-label collision and fig4 dt-label crowding found by
       the audit).
-- [ ] **P6 — Polish**: README final, CI final, clean-clone repro run
-  (build → ctest → run_experiments → identical figures).
+- [x] **P6 — Polish** (committed `7153652`, `d9cba22`): README final
+      (usage + paper-repro sections), CPU-only `-Wall -Wextra` clean
+      (guarded CUDA-only helpers in `cmd/reduce.cpp`), figure PDFs made
+      byte-reproducible via `SOURCE_DATE_EPOCH`, legacy untracked junk
+      removed. **Clean-clone repro from `/tmp` verified:**
+      1. CPU-only CI sim: warning-free, 4/4 ctest; CUDA build: 5/5
+      2. Figures from committed CSVs: PNG hashes match + PDFs
+         byte-identical to committed
+      3. Full `run_experiments.sh` rerun: 42/44 CSVs byte-identical;
+         `e4_bench` differs only in timing; `e2_reduce` differs only in
+         `ms` (9597/9600) + 839 value/bits rows — **all atomic**
+         (442 fp32 + 397 fp64; fixed/Kahan 0 differences), i.e. the
+         rerun itself reproduces the paper's determinism claim.
 
 ## Experimental risks
 
