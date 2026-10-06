@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "force.hpp"
+#include "hd.hpp"
 
 namespace noether {
 
@@ -13,7 +14,7 @@ namespace noether {
 //   verlet    — velocity Verlet, kick-drift-kick (2nd-order symplectic)
 //   yoshida4  — Yoshida (1990) triple jump of velocity Verlet (4th-order symplectic)
 
-inline State rk4_step(const State& s, double dt) {
+NOETHER_HD inline State rk4_step(const State& s, double dt) {
     Vec3 a1 = gravity_accel(s.x, s.y, s.z);
 
     double x2 = s.x + 0.5 * dt * s.vx;
@@ -51,7 +52,7 @@ inline State rk4_step(const State& s, double dt) {
     return out;
 }
 
-inline State verlet_step(const State& s, double dt) {
+NOETHER_HD inline State verlet_step(const State& s, double dt) {
     Vec3 a1 = gravity_accel(s.x, s.y, s.z);
 
     double hx = s.x + dt * (s.vx + 0.5 * dt * a1.x);
@@ -69,7 +70,7 @@ inline State verlet_step(const State& s, double dt) {
     return out;
 }
 
-inline State yoshida_step(const State& s, double dt) {
+NOETHER_HD inline State yoshida_step(const State& s, double dt) {
     const double c2 = std::cbrt(2.0);
     const double w1 = 1.0 / (2.0 - c2);
     const double w0 = -c2 / (2.0 - c2);

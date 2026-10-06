@@ -40,14 +40,22 @@ Branch: `alpha` (legacy Astrosis stays on `main`). Engine name: **noether**
     (order: RK4≥14×, Verlet≥3.5×, Yoshida≥14×; 7-day bounded ΔH/H₀ vs RK4
     secular drift; bitwise determinism), `test_config`
   - Gate: `ctest` fully green → commit
-- [ ] **P2 — CUDA core**
+- [x] **P2 — CUDA core** (committed; measured on RTX 2050:
+      atomic shows natural order spread even single-stream (8–13 unique
+      bit-patterns / 100 repeats; fp64 spread ~1e-15 rel, fp32 up to 1.6 abs);
+      fixed/kahan bitwise-stable 100/100 and fp64 bit-exact vs long-double
+      oracle on lcg input; GPU verlet 4.81 ms/step @ 1M vs CPU 9.97 ms/step
+      (2.07×); kahan reduce cost 0.41 vs atomic 0.31 ms)
   - `core/cuda/device_mem.hpp` (RAII port), `core/cuda/timing.hpp` (cudaEvent)
-  - `core/cuda/kernels.cu`: `k_verlet_soa`, `k_energy`, reductions
-    `atomic | fixed | kahan` × `{fp64, fp32-accumulator}`
-  - `drift`/`reduce`/`bench` GPU paths in `main.cpp`
-  - CTest: CUDA reduction == host Kahan oracle; fixed/kahan bitwise-stable
-    over 100 repeats; record atomic repeat-spread (nondeterminism evidence,
-    fallback: multi-stream chunked accumulation to force order variation)
+  - `core/cuda/kernels.cu`: `k_verlet_soa` (+rk4/yoshida), `k_energy`,
+    reductions `atomic | fixed | kahan` × `{fp64, fp32-accumulator}`
+  - commands split out of main.cpp → `cmd/{drift,reduce,bench}.cpp`;
+    `drift --backend gpu` with `--red-mode/--red-prec/--red-streams`;
+    `reduce` = E2 harness (per-repeat CSV with raw bit patterns);
+    `bench` = throughput table + CSV
+  - CTest `test_cuda` (skips 77 w/o device): reduction == long-double oracle,
+    fixed/kahan bitwise-stable over 100 repeats, atomic spread recorded,
+    unity-sum exactness, GPU/CPU trajectory agreement, GPU 7-day ΔH/H₀ bound
 - [ ] **P3 — Experiments → CSVs in `paper/results/`**
   - E1 `drift`: RK4 vs Verlet vs Yoshida, ΔH/H₀ vs t, dt sweep (24 h + 7 d)
   - E2 `reduce`: modes × N=2^10..2^24 × R=100 — bitwise-repeatability + spread

@@ -30,7 +30,12 @@ if(NOETHER_USE_CUDA)
 endif()
 
 # ── Engine binary ─────────────────────────────────────────────────────────────
-set(NOETHER_SOURCES main.cpp)
+set(NOETHER_SOURCES
+    main.cpp
+    cmd/drift.cpp
+    cmd/reduce.cpp
+    cmd/bench.cpp
+)
 if(NOETHER_HAS_CUDA)
     list(APPEND NOETHER_SOURCES core/cuda/kernels.cu)
 endif()
@@ -44,6 +49,8 @@ target_compile_options(noether PRIVATE
 )
 
 if(NOETHER_HAS_CUDA)
+    find_package(CUDAToolkit REQUIRED)
+    target_link_libraries(noether PRIVATE CUDA::cudart)
     target_compile_definitions(noether PRIVATE NOETHER_USE_CUDA)
 endif()
 

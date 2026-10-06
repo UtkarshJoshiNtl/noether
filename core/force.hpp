@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "constants.hpp"
+#include "hd.hpp"
 
 namespace noether {
 
@@ -27,7 +28,7 @@ inline constexpr unsigned J3_BIT = 2;
 inline constexpr unsigned J4_BIT = 4;
 inline constexpr unsigned ALL_HARMONICS = 7;
 
-inline double potential(double x, double y, double z, unsigned mask = ALL_HARMONICS) {
+NOETHER_HD inline double potential(double x, double y, double z, unsigned mask = ALL_HARMONICS) {
     double r2 = x * x + y * y + z * z;
     if (r2 < 1.0)
         return 0.0;
@@ -52,7 +53,7 @@ inline double potential(double x, double y, double z, unsigned mask = ALL_HARMON
     return -(MU_EARTH / r) * (1.0 - correction);
 }
 
-inline Vec3 gravity_accel(double x, double y, double z, unsigned mask = ALL_HARMONICS) {
+NOETHER_HD inline Vec3 gravity_accel(double x, double y, double z, unsigned mask = ALL_HARMONICS) {
     double r2 = x * x + y * y + z * z;
     double rm = std::sqrt(r2);
     double r3 = r2 * rm;
@@ -91,11 +92,12 @@ inline Vec3 gravity_accel(double x, double y, double z, unsigned mask = ALL_HARM
 }
 
 // Total energy per unit mass: H = T + Phi (the Hamiltonian of the separable system).
-inline double hamiltonian(const State& s) {
+NOETHER_HD inline double hamiltonian(const State& s) {
     return 0.5 * (s.vx * s.vx + s.vy * s.vy + s.vz * s.vz) + potential(s.x, s.y, s.z);
 }
 
-inline double hamiltonian(double x, double y, double z, double vx, double vy, double vz) {
+NOETHER_HD inline double hamiltonian(double x, double y, double z, double vx, double vy,
+                                     double vz) {
     return 0.5 * (vx * vx + vy * vy + vz * vz) + potential(x, y, z);
 }
 

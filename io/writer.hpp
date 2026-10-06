@@ -33,6 +33,9 @@ struct CsvWriter {
         }
         f << '\n';
     }
+
+    // Pre-formatted row (for columns that are not plain doubles, e.g. hex bits).
+    void raw_row(const std::string& line) { f << line << '\n'; }
 };
 
 }  // namespace noether
