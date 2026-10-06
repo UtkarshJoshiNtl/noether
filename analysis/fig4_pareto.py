@@ -61,9 +61,22 @@ def main():
         ax.plot([x] * len(ys), ys, "-", color=color, lw=0.6, alpha=0.7)
         ax.loglog([x] * len(ys), ys, linestyle="None", marker=marker, color=color,
                   ms=4.5, label=f"{prec}")
-        for xx, yy, dt in zip([x] * len(ys), ys, dts):
-            ax.annotate(f"{dt}", (xx, yy), fontsize=5.5, color=color,
-                        xytext=(3, 0), textcoords="offset points")
+        # dt labels: push apart vertically so near-equal accuracies (e.g.
+        # fp32 at dt=5/10 s, 0.5 px apart) never collide.
+        order = sorted(range(len(ys)), key=lambda i: -ys[i])
+        label_y = {}  # dt -> display y for the label
+        prev = None
+        gap = 7.5  # points, ~label height
+        for i in order:
+            ypx = ax.transData.transform((x, ys[i]))[1]
+            if prev is not None and ypx > prev - gap:
+                ypx = prev - gap
+            label_y[dts[i]] = ypx
+            prev = ypx
+        for yy, dt in zip(ys, dts):
+            ypx = ax.transData.transform((x, yy))[1]
+            ax.annotate(f"{dt}", (x, yy), fontsize=5.5, color=color,
+                        xytext=(3, label_y[dt] - ypx), textcoords="offset points")
 
     # CPU fp64 verlet for context (same physics as e4 fp64 dt=10).
     cpu_ns = ns_step["cpu:verlet"]

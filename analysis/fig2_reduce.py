@@ -2,8 +2,9 @@
 """Figure 2 — reduction quality ladder, adversarial cliff, determinism (E2).
 
 Three panels:
-  (a) lcg input: relative error vs n — fp64 accumulators sit on the machine
-      floor (~1e-16), fp32 accumulators an order of magnitude worse (~5e-8)
+  (a) lcg input: relative error vs n — fp64 accumulators sit on the
+      summation floor (1.2e-17 .. 3.6e-15 over all modes), fp32 grows from
+      1.8e-9 (n=2^10) to 3.0e-6 (n=2^24)
   (b) adversarial input (alternating +/-1e8 + residue): fp32 collapses to a
       relative error of 1.0 (sum rounds to exactly 0) at every n, while fp64
       stays exact
@@ -101,7 +102,7 @@ def main():
     lcg_oracle = {n: float(np.longdouble(lcg[:n]).sum()) for n in ns_all}
     adv_oracle = {n: adversarial_oracle(n) for n in ns_all}
 
-    fig, axes = plt.subplots(3, 1, figsize=(3.5, 4.6))
+    fig, axes = plt.subplots(3, 1, figsize=(3.5, 3.1))
 
     ax = axes[0]
     for mode in ("atomic", "fixed", "kahan"):
@@ -109,7 +110,7 @@ def main():
             pts = series_points(rows, "lcg", mode, prec, ns_all,
                                 lambda n: lcg_oracle[n])
             draw(ax, pts, mode, prec, label=f"{mode}/{prec}")
-    ax.set_title("(a) uniform input: accumulator accuracy", fontsize=7, loc="left")
+    ax.set_title("(a) uniform input: accumulator accuracy", fontsize=6.5, loc="left")
     ax.set_ylim(1e-17, 1e-4)
     ax.set_ylabel("rel. error")
     ax.legend(ncol=3, frameon=False, handletextpad=0.3, columnspacing=0.8)
@@ -126,7 +127,7 @@ def main():
     ax.text(0.02, 0.10, "fp64: exact for every n (rel. error 0)",
             transform=ax.transAxes, fontsize=6, color="C0")
     ax.set_title(r"(b) adversarial input $\pm10^8$ + residue: cliff",
-                 fontsize=7, loc="left")
+                 fontsize=6.5, loc="left")
     ax.set_ylim(5e-19, 3.0)
     ax.set_ylabel("rel. error")
     ax.set_xlabel("$n$ (number of terms)")
@@ -150,7 +151,7 @@ def main():
     ax.text(0.02, 0.14, "fixed / Kahan: 1 value in 100 repeats (deterministic)",
             transform=ax.transAxes, fontsize=6, color="C0")
     ax.set_title("(c) bitwise repeatability: distinct values in 100 repeats",
-                 fontsize=7, loc="left")
+                 fontsize=6.5, loc="left")
     ax.set_ylim(0.5, None)
     ax.set_ylabel("distinct values")
     ax.set_xlabel("$n$ (number of terms)")

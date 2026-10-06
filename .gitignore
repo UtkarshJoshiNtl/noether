@@ -28,3 +28,8 @@ Thumbs.db
 
 # Regeneratable demo recordings
 *.cast
+
+# LaTeX intermediates (paper/main.pdf IS committed)
+*.aux
+*.xdv
+*.synctex.gz

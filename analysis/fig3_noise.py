@@ -23,12 +23,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RESULTS = os.path.join(ROOT, "paper", "results")
 OUTDIR = os.path.join(ROOT, "paper", "figs")
 
-# (file stem, label, color, linestyle)
+# (file stem, label, color, linestyle)  — Kahan FP32 is bit-identical to
+# fixed FP32 (noted in the caption, kept out of the legend for width).
 SERIES = [
     ("cpu", "CPU long-double ref.", "k", "-"),
     ("fixed_fp64", "fixed/fp64", "C0", "--"),
     ("atomic_fp64", "atomic/fp64", "C0", ":"),
-    ("fixed_fp32", "fixed/fp32 (Kahan identical)", "C2", "-"),
+    ("fixed_fp32", "fixed/fp32", "C2", "-"),
     ("atomic_fp32", "atomic/fp32", "C3", "-"),
 ]
 

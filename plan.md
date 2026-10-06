@@ -87,10 +87,15 @@ Branch: `alpha` (legacy Astrosis stays on `main`). Engine name: **noether**
       fp32 staircase at the ±6.486e-8 ULP quantum, atomic/fp32 flat at 0
   - fig4_pareto: max|ΔH/H₀| vs ns/step — vertical accuracy bands per
       precision at fixed throughput + CPU verlet star
-- [ ] **P5 — Paper**: `paper/main.tex` (IEEEtran 4 pp): Intro / Background /
-  Kernels / Setup (RTX 2050, CUDA 12.9, g++ 14) / Results / Threats /
-  Conclusion + artifact appendix (3-command repro). Every number traceable
-  to a `paper/results/` CSV row.
+- [x] **P5 — Paper**: `paper/main.tex` + `paper/main.pdf` (IEEEtran conf,
+      4 pp. exact, Times via newtx, built with tectonic): Intro / Background /
+      Design / Setup (RTX 2050, CUDA 12.9, g++ 14.2, 400 km 51.6° orbit) /
+      Results (E1–E4, Figs 1–4 + Table I) / Threats / Conclusion +
+      artifact appendix (3-command repro). Every number extracted from
+      `paper/results/*.csv` (verified by script); 6 references, no
+      overfull boxes; figure span-overlap audit clean (fixed fig3
+      legend/quantum-label collision and fig4 dt-label crowding found by
+      the audit).
 - [ ] **P6 — Polish**: README final, CI final, clean-clone repro run
   (build → ctest → run_experiments → identical figures).
 
