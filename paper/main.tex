@@ -73,7 +73,7 @@ $J_2$--$J_4$) and the measurement campaign behind three claims:
 \item \textbf{Determinism is a reduction-mode choice.} A fixed merge-tree or
       Kahan reduction is bitwise reproducible at every size up to
       $n=2^{24}$; atomic summation is not, even under one fixed launch
-      configuration, and the spread grows with $n$ (Sec.~\ref{sec:e2}).
+      configuration, and the spread varies with $n$ (Sec.~\ref{sec:e2}).
 \item \textbf{FP32 reductions have a hard noise floor.} With FP32
       accumulators, the relative-energy ULP is $6.5\times10^{-8}$, larger
       than the $5\times10^{-8}$ symplectic oscillation itself, and
@@ -170,7 +170,9 @@ FP64 paths remain IEEE-conformant); the CPU reference is the same binary
 with OpenMP across 12 threads. Bodies orbit a circular 400\,km,
 51.6$^\circ$-inclination orbit; ensembles spread RAAN and argument of
 latitude over a deterministic golden-ratio sequence
-(\texttt{core/ensemble.hpp}). $H_0$ is evaluated in long double. Four
+(\texttt{core/ensemble.hpp}). The CPU reference accumulates $H$ over
+bodies in long double; GPU reductions accumulate in FP64/FP32 partials.
+Four
 experiments produce every number and figure below, all regenerable by
 \texttt{scripts/run\_experiments.sh} into \texttt{paper/results/}:
 
@@ -220,9 +222,9 @@ bounded. Source: \texttt{paper/results/e1\_*\_7d.csv}.}
 \label{sec:e2}
 Figure~\ref{fig:reduce} summarizes all 9\,600 repeats. On the benign input,
 FP64 accumulators sit at the summation floor ($1.2\times10^{-17}$ to
-$3.6\times10^{-15}$ relative over all modes and sizes) and FP32
-accumulators degrade from $1.8\times10^{-9}$ at $n=2^{10}$ to
-$3.0\times10^{-6}$ at $n=2^{24}$. The adversarial input
+$3.6\times10^{-15}$ relative over all modes and sizes); FP32 errors
+span $1.8\times10^{-9}$ to $7.4\times10^{-8}$ for the fixed and Kahan
+trees and reach $3.0\times10^{-6}$ for atomic summation. The adversarial input
 ($\pm10^8$ with an $i \bmod 7$ residue) is an exact cliff: every FP32
 summation---all three modes, all sizes, all 100 repeats---rounds to exactly
 zero (relative error $1.0$), whereas FP64 partial sums stay integral below
@@ -245,7 +247,7 @@ knobs. The cost of determinism is modest at $n=2^{20}$: 0.342\,ms fixed and
 \caption{Reduction quality over 100 repeats. (a) Benign input accuracy
 ladder; (b) adversarial cliff---FP32 collapses to a zero sum, FP64 stays
 exact; (c) distinct results in 100 repeats---fixed/Kahan always one,
-atomic grows with $n$. Source: \texttt{paper/results/e2\_reduce.csv}.}
+atomic varies with $n$. Source: \texttt{paper/results/e2\_reduce.csv}.}
 \label{fig:reduce}
 \end{figure}
 
@@ -286,7 +288,7 @@ FP64, $19.9\times$ over CPU) and the compensated variant at 0.724\,ms
 time step: FP32k beats FP32 everywhere, by $4.2\times$ at $\Delta
 t=10$\,s ($6.48\times10^{-6}$ vs.\ $2.72\times10^{-5}$). Note the honest
 inversion of the classical rule for FP32: error \emph{falls} as
-$\Delta t$ grows ($2.7\times10^{-5}$ at 5\,s to $6.7\times10^{-6}$ at
+$\Delta t$ grows ($2.8\times10^{-5}$ at 5\,s to $6.7\times10^{-6}$ at
 40\,s) because per-step rounding, not truncation, dominates at small
 $\Delta t$. Figure~\ref{fig:pareto} shows the resulting bands: precision
 sets the vertical position, state precision sets the horizontal one, and
@@ -342,7 +344,7 @@ Noether's correspondence---symmetry, conservation, diagnostic---survives
 parallel hardware only if the reduction that reports the conserved quantity
 is treated as part of the algorithm, not as plumbing. Fixed-tree and Kahan
 reductions restore bitwise determinism at 11--31\% overhead; atomic
-summation does not, and its run-to-run spread grows with problem size.
+summation does not, and its run-to-run spread varies with problem size.
 FP32 accumulation is not a cheaper version of FP64: it changes what can be
 measured at all, quantizing the symplectic oscillation into ULP steps and
 collapsing under cancellation. The useful operating point on this hardware
@@ -359,7 +361,7 @@ Everything is reproducible from a clean clone with three commands:
 \item \texttt{cmake -S . -B build -DCMAKE\_BUILD\_TYPE=Release \&\&
       cmake --build build -j} \texttt{\&\&} \texttt{ctest --test-dir build
       --output-on-failure} (5/5 tests; CUDA tests skip without a device).
-\item \texttt{./scripts/run\_experiments.sh} regenerates all 44 CSVs in
+\item \texttt{./scripts/run\_experiments.sh} regenerates all 39 CSVs in
       \texttt{paper/results/} ($\sim$90\,s with a GPU).
 \item \texttt{python3 analysis/fig1\_drift.py} (and \texttt{fig2},
       \texttt{fig3}, \texttt{fig4}) regenerates
@@ -367,8 +369,7 @@ Everything is reproducible from a clean clone with three commands:
       \texttt{analysis/requirements.txt}.
 \end{enumerate}
 Every number in this paper is computed from those CSVs by the figure
-scripts or the commands shown in the captions; \texttt{plan.md} maps each
-claim to its experiment. The paper itself builds with
+scripts or the commands shown in the captions. The paper itself builds with
 \texttt{cd paper \&\& tectonic main.tex} (any \TeX\ toolchain with the
 \texttt{newtx} fonts works).
 

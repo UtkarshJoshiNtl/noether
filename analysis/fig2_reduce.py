@@ -3,13 +3,14 @@
 
 Three panels:
   (a) lcg input: relative error vs n — fp64 accumulators sit on the
-      summation floor (1.2e-17 .. 3.6e-15 over all modes), fp32 grows from
-      1.8e-9 (n=2^10) to 3.0e-6 (n=2^24)
+      summation floor (1.2e-17 .. 3.6e-15 over all modes); fp32 spans
+      1.8e-9 .. 7.4e-8 for fixed/Kahan and reaches 3.0e-6 for atomic
+      (n=2^22)
   (b) adversarial input (alternating +/-1e8 + residue): fp32 collapses to a
       relative error of 1.0 (sum rounds to exactly 0) at every n, while fp64
       stays exact
   (c) bitwise determinism: distinct values in 100 repeats — fixed/Kahan are
-      always 1, atomic grows with n
+      always 1, atomic varies with n (peaks at 42 FP64 / 47 FP32 at n=2^22)
 
 Usage (from repo root):  python3 analysis/fig2_reduce.py
 Output: paper/figs/fig2_reduce.pdf

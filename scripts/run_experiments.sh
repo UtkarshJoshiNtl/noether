@@ -9,7 +9,7 @@
 #                               + throughput (bench, n=2^20)
 #
 # CPU paths are used for E1 (bit-reproducible; GPU/CPU equivalence is enforced
-# by tests/test_cuda.cpp). Runtime: a few minutes on the dev machine.
+# by tests/test_cuda.cpp). Runtime: ~90 s on the dev machine with a GPU.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."

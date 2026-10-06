@@ -98,9 +98,13 @@ int main() {
         double conv_min_ratio;
         double energy_bound;
     };
+    // ΔH values below are for this test's equatorial orbit sampled every
+    // 600 steps; E1 in the paper uses a 51.6° orbit sampled every 600 s
+    // (Verlet 1.04e-7 there vs 1.8e-7 here). The convergence ratios are
+    // the ones the paper quotes.
     const Case cases[] = {
-        {rk4_step, "rk4", 14.0, 1e-7},   // measured 16.59× / 3.6e-9 @ dt=10s / 7 d
-        {verlet_step, "verlet", 3.5, 1e-6},  // measured 4.00× / 1.8e-7
+        {rk4_step, "rk4", 14.0, 1e-7},           // measured 16.59× / 3.6e-9 @ dt=10s / 7 d
+        {verlet_step, "verlet", 3.5, 1e-6},      // measured 4.00× / 1.8e-7
         {yoshida_step, "yoshida4", 14.0, 1e-8},  // measured 15.98× / 4.9e-11
     };
 

@@ -19,7 +19,7 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
-- C++20, `-O3 -Wall -Wextra`, no fast-math (FP64 stays IEEE-conformant).
+- C++20, `-O3 -march=native -Wall -Wextra`, no fast-math (FP64 stays IEEE-conformant).
 - CUDA is auto-detected (sm_75/80/86/89); force CPU-only with `-DNOETHER_USE_CUDA=OFF`.
 - CI builds and tests the CPU-only configuration (`.github/workflows/ci.yml`).
 
@@ -43,7 +43,7 @@ ctest --test-dir build --output-on-failure
 ## Reproduce the paper
 
 ```sh
-./scripts/run_experiments.sh              # 44 CSVs -> paper/results/  (~90 s, GPU)
+./scripts/run_experiments.sh              # 39 CSVs -> paper/results/  (~90 s, GPU)
 python3 analysis/fig1_drift.py            # -> paper/figs/fig1_drift.pdf
 python3 analysis/fig2_reduce.py           # fig2_reduce / fig3_noise / fig4_pareto
 python3 analysis/fig3_noise.py
@@ -62,7 +62,7 @@ core/        physics, integrators, reductions (header-only, C++20)
 core/cuda/   CUDA kernels (symplectic steppers, atomic/fixed/Kahan reductions)
 cmd/         drift / reduce / bench subcommands
 io/          JSON-subset config parser, CSV writers
-tests/       CTest suite (force == -grad(Phi), integrator order, CUDA parity)
+tests/       CTest suite (force == -grad(Phi), integrator order, config, ensemble, CUDA parity)
 analysis/    Python figure scripts (consumes CSVs; NOT part of the build)
 scripts/     run_experiments.sh (regenerates every paper/results/*.csv)
 paper/       main.tex + main.pdf, figures, raw experiment results

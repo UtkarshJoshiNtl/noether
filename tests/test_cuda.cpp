@@ -65,7 +65,7 @@ void test_reduction_accuracy() {
         double tol;
         const char* name;
     };
-    // Calibrated on RTX 2050 (see plan.md); tolerances are relative to |oracle|.
+    // Calibrated on RTX 2050; tolerances are relative to |oracle|.
     const Case cases[] = {
         {cuda::ReduceMode::Fixed, cuda::ReducePrec::Fp64, 1e-15, "fixed/fp64"},
         {cuda::ReduceMode::Kahan, cuda::ReducePrec::Fp64, 1e-15, "kahan/fp64"},
@@ -120,7 +120,7 @@ void test_bitwise_stability() {
 
 // Records atomic repeat-spread — the nondeterminism evidence for the paper.
 // Single-stream may appear stable on a fixed launch config; multi-stream
-// chunked accumulation forces order variation (plan.md risk #1 fallback).
+// chunked accumulation is the fallback if spread ever fails to appear.
 void test_atomic_spread() {
     const std::size_t n = 1 << 18;
     const int repeats = 100;
