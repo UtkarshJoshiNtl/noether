@@ -1,5 +1,8 @@
 set(NOETHER_TESTS
     test_smoke
+    test_force
+    test_integrators
+    test_config
 )
 
 foreach(t ${NOETHER_TESTS})
