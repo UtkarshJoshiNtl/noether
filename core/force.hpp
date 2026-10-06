@@ -13,14 +13,24 @@ namespace noether {
 // Convention (standard EGM96): Phi = -(MU/r) * [1 - sum_n Jn (RE/r)^n Pn(z/r)].
 // Note: legacy Astrosis shipped a sign-flipped J3 term; the gradient test makes
 // that class of bug impossible to reintroduce.
+//
+// Physics is templated on the scalar type: T=double is the validated reference
+// path (bit-identical to the pre-template implementation), T=float powers the
+// fp32 mixed-precision kernels (E4 experiments). All arithmetic is written in
+// an order that is exactly the same for both instantiations.
 
-struct Vec3 {
-    double x, y, z;
+template <typename T>
+struct Vec3T {
+    T x, y, z;
 };
 
-struct State {
-    double x, y, z, vx, vy, vz;
+template <typename T>
+struct StateT {
+    T x, y, z, vx, vy, vz;
 };
+
+using Vec3 = Vec3T<double>;
+using State = StateT<double>;
 
 // Harmonic mask bits for gravity_accel / potential.
 inline constexpr unsigned J2_BIT = 1;
@@ -28,77 +38,81 @@ inline constexpr unsigned J3_BIT = 2;
 inline constexpr unsigned J4_BIT = 4;
 inline constexpr unsigned ALL_HARMONICS = 7;
 
-NOETHER_HD inline double potential(double x, double y, double z, unsigned mask = ALL_HARMONICS) {
-    double r2 = x * x + y * y + z * z;
-    if (r2 < 1.0)
-        return 0.0;
-    double r = std::sqrt(r2);
-    double u = z / r;
-    double u2 = u * u;
-    double re_r = R_EARTH / r;
-    double s2 = re_r * re_r;
-    double s3 = s2 * re_r;
-    double s4 = s2 * s2;
+template <typename T>
+NOETHER_HD inline T potential(T x, T y, T z, unsigned mask = ALL_HARMONICS) {
+    T r2 = x * x + y * y + z * z;
+    if (r2 < T(1))
+        return T(0);
+    T r = std::sqrt(r2);
+    T u = z / r;
+    T u2 = u * u;
+    T re_r = T(R_EARTH) / r;
+    T s2 = re_r * re_r;
+    T s3 = s2 * re_r;
+    T s4 = s2 * s2;
 
-    double correction = 0.0;
+    T correction = T(0);
     if (mask & J2_BIT) {
-        correction += J2 * s2 * (0.5 * (3.0 * u2 - 1.0));
+        correction += T(J2) * s2 * (T(0.5) * (T(3) * u2 - T(1)));
     }
     if (mask & J3_BIT) {
-        correction += J3 * s3 * (0.5 * (5.0 * u2 * u - 3.0 * u));
+        correction += T(J3) * s3 * (T(0.5) * (T(5) * u2 * u - T(3) * u));
     }
     if (mask & J4_BIT) {
-        correction += J4 * s4 * ((35.0 * u2 * u2 - 30.0 * u2 + 3.0) / 8.0);
+        correction += T(J4) * s4 * ((T(35) * u2 * u2 - T(30) * u2 + T(3)) / T(8));
     }
-    return -(MU_EARTH / r) * (1.0 - correction);
+    return -(T(MU_EARTH) / r) * (T(1) - correction);
 }
 
-NOETHER_HD inline Vec3 gravity_accel(double x, double y, double z, unsigned mask = ALL_HARMONICS) {
-    double r2 = x * x + y * y + z * z;
-    double rm = std::sqrt(r2);
-    double r3 = r2 * rm;
-    double r5 = r3 * r2;
-    double r7 = r5 * r2;
+template <typename T>
+NOETHER_HD inline Vec3T<T> gravity_accel(T x, T y, T z, unsigned mask = ALL_HARMONICS) {
+    T r2 = x * x + y * y + z * z;
+    T rm = std::sqrt(r2);
+    T r3 = r2 * rm;
+    T r5 = r3 * r2;
+    T r7 = r5 * r2;
 
-    Vec3 a{-MU_EARTH * x / r3, -MU_EARTH * y / r3, -MU_EARTH * z / r3};
-    if (rm < 1.0)
+    Vec3T<T> a{-T(MU_EARTH) * x / r3, -T(MU_EARTH) * y / r3, -T(MU_EARTH) * z / r3};
+    if (rm < T(1))
         return a;
 
-    double z2r2 = (z * z) / r2;
+    T z2r2 = (z * z) / r2;
 
     if (mask & J2_BIT) {
-        double j2f = 1.5 * J2 * MU_EARTH * R_EARTH * R_EARTH / r5;
-        a.x += j2f * x * (5.0 * z2r2 - 1.0);
-        a.y += j2f * y * (5.0 * z2r2 - 1.0);
-        a.z += j2f * z * (5.0 * z2r2 - 3.0);
+        T j2f = T(1.5) * T(J2) * T(MU_EARTH) * T(R_EARTH) * T(R_EARTH) / r5;
+        a.x += j2f * x * (T(5) * z2r2 - T(1));
+        a.y += j2f * y * (T(5) * z2r2 - T(1));
+        a.z += j2f * z * (T(5) * z2r2 - T(3));
     }
 
     if (mask & J3_BIT) {
-        double j3f = 2.5 * J3 * MU_EARTH * R_EARTH * R_EARTH * R_EARTH / r7;
-        a.x += j3f * x * (7.0 * z2r2 * z - 3.0 * z);
-        a.y += j3f * y * (7.0 * z2r2 * z - 3.0 * z);
-        a.z += j3f * (7.0 * z2r2 * z * z - 6.0 * z * z + 0.6 * r2);
+        T j3f = T(2.5) * T(J3) * T(MU_EARTH) * T(R_EARTH) * T(R_EARTH) * T(R_EARTH) / r7;
+        a.x += j3f * x * (T(7) * z2r2 * z - T(3) * z);
+        a.y += j3f * y * (T(7) * z2r2 * z - T(3) * z);
+        a.z += j3f * (T(7) * z2r2 * z * z - T(6) * z * z + T(0.6) * r2);
     }
 
     if (mask & J4_BIT) {
-        double z4r4 = z2r2 * z2r2;
-        double j4f = 0.625 * J4 * MU_EARTH * R_EARTH * R_EARTH * R_EARTH * R_EARTH / r7;
-        a.x += j4f * x * (3.0 - 42.0 * z2r2 + 63.0 * z4r4);
-        a.y += j4f * y * (3.0 - 42.0 * z2r2 + 63.0 * z4r4);
-        a.z += j4f * z * (15.0 - 70.0 * z2r2 + 63.0 * z4r4);
+        T z4r4 = z2r2 * z2r2;
+        T j4f =
+            T(0.625) * T(J4) * T(MU_EARTH) * T(R_EARTH) * T(R_EARTH) * T(R_EARTH) * T(R_EARTH) / r7;
+        a.x += j4f * x * (T(3) - T(42) * z2r2 + T(63) * z4r4);
+        a.y += j4f * y * (T(3) - T(42) * z2r2 + T(63) * z4r4);
+        a.z += j4f * z * (T(15) - T(70) * z2r2 + T(63) * z4r4);
     }
 
     return a;
 }
 
 // Total energy per unit mass: H = T + Phi (the Hamiltonian of the separable system).
-NOETHER_HD inline double hamiltonian(const State& s) {
-    return 0.5 * (s.vx * s.vx + s.vy * s.vy + s.vz * s.vz) + potential(s.x, s.y, s.z);
+template <typename T>
+NOETHER_HD inline T hamiltonian(const StateT<T>& s) {
+    return T(0.5) * (s.vx * s.vx + s.vy * s.vy + s.vz * s.vz) + potential(s.x, s.y, s.z);
 }
 
-NOETHER_HD inline double hamiltonian(double x, double y, double z, double vx, double vy,
-                                     double vz) {
-    return 0.5 * (vx * vx + vy * vy + vz * vz) + potential(x, y, z);
+template <typename T>
+NOETHER_HD inline T hamiltonian(T x, T y, T z, T vx, T vy, T vz) {
+    return T(0.5) * (vx * vx + vy * vy + vz * vz) + potential(x, y, z);
 }
 
 }  // namespace noether
