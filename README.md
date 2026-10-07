@@ -1,15 +1,12 @@
 # noether
 
-A lean C++20/CUDA research engine for studying **Hamiltonian symmetry preservation on
+A C++20/CUDA research engine for studying **Hamiltonian symmetry preservation on
 parallel hardware**: symplectic integration, deterministic parallel reductions, and
 mixed-precision acceleration on consumer GPUs.
 
-Backs the 4-page paper in [`paper/`](paper/main.pdf): *"Preserving Hamiltonian Symmetry
+Backs(builds would be even more appropriate) the 4-page paper in [`paper/`](paper/main.pdf): *"Preserving Hamiltonian Symmetry
 on Parallel Hardware: Deterministic Reductions and Mixed-Precision Acceleration in GPU
 Symplectic Integration."*
-
-No Python runtime. No UI. No plotting. The engine computes and writes raw CSV data;
-figures are produced externally from `paper/results/` by `analysis/`.
 
 ## Build
 
