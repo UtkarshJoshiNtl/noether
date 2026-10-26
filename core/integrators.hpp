@@ -3,7 +3,6 @@
 #include <cmath>
 
 #include "force.hpp"
-#include "hd.hpp"
 
 namespace noether {
 
@@ -14,12 +13,11 @@ namespace noether {
 //   verlet    — velocity Verlet, kick-drift-kick (2nd-order symplectic)
 //   yoshida4  — Yoshida (1990) triple jump of velocity Verlet (4th-order symplectic)
 //
-// Templated on scalar type: T=double is the validated reference path
-// (bit-identical to the pre-template implementation); T=float is used by the
-// fp32 mixed-precision kernels (E4).
+// Templated on scalar type: T=double is the reference path; T=float is
+// available for reduced-precision studies.
 
 template <typename T>
-NOETHER_HD inline StateT<T> rk4_step(const StateT<T>& s, T dt) {
+inline StateT<T> rk4_step(const StateT<T>& s, T dt) {
     Vec3T<T> a1 = gravity_accel(s.x, s.y, s.z);
 
     T x2 = s.x + T(0.5) * dt * s.vx;
@@ -58,7 +56,7 @@ NOETHER_HD inline StateT<T> rk4_step(const StateT<T>& s, T dt) {
 }
 
 template <typename T>
-NOETHER_HD inline StateT<T> verlet_step(const StateT<T>& s, T dt) {
+inline StateT<T> verlet_step(const StateT<T>& s, T dt) {
     Vec3T<T> a1 = gravity_accel(s.x, s.y, s.z);
 
     T hx = s.x + dt * (s.vx + T(0.5) * dt * a1.x);
@@ -77,7 +75,7 @@ NOETHER_HD inline StateT<T> verlet_step(const StateT<T>& s, T dt) {
 }
 
 template <typename T>
-NOETHER_HD inline StateT<T> yoshida_step(const StateT<T>& s, T dt) {
+inline StateT<T> yoshida_step(const StateT<T>& s, T dt) {
     const T c2 = static_cast<T>(std::cbrt(2.0));
     const T w1 = T(1) / (T(2) - c2);
     const T w0 = -c2 / (T(2) - c2);

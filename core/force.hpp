@@ -3,21 +3,16 @@
 #include <cmath>
 
 #include "constants.hpp"
-#include "hd.hpp"
 
 namespace noether {
 
 // Conservative Earth gravity: point mass + zonal harmonics J2..J4.
-// gravity_accel() is the exact negative gradient of potential(); tests/test_force.cpp
-// enforces this with central finite differences, per harmonic.
-// Convention (standard EGM96): Phi = -(MU/r) * [1 - sum_n Jn (RE/r)^n Pn(z/r)].
-// Note: legacy Astrosis shipped a sign-flipped J3 term; the gradient test makes
-// that class of bug impossible to reintroduce.
+// gravity_accel() is the exact negative gradient of potential(); tests enforce
+// this with central finite differences, per harmonic.
+// Convention (EGM96): Phi = -(MU/r) * [1 - sum_n Jn (RE/r)^n Pn(z/r)].
 //
-// Physics is templated on the scalar type: T=double is the validated reference
-// path (bit-identical to the pre-template implementation), T=float powers the
-// fp32 mixed-precision kernels (E4 experiments). All arithmetic is written in
-// an order that is exactly the same for both instantiations.
+// Physics is templated on the scalar type: T=double is the reference path;
+// T=float is available for reduced-precision studies.
 
 template <typename T>
 struct Vec3T {
@@ -39,7 +34,7 @@ inline constexpr unsigned J4_BIT = 4;
 inline constexpr unsigned ALL_HARMONICS = 7;
 
 template <typename T>
-NOETHER_HD inline T potential(T x, T y, T z, unsigned mask = ALL_HARMONICS) {
+inline T potential(T x, T y, T z, unsigned mask = ALL_HARMONICS) {
     T r2 = x * x + y * y + z * z;
     if (r2 < T(1))
         return T(0);
@@ -65,7 +60,7 @@ NOETHER_HD inline T potential(T x, T y, T z, unsigned mask = ALL_HARMONICS) {
 }
 
 template <typename T>
-NOETHER_HD inline Vec3T<T> gravity_accel(T x, T y, T z, unsigned mask = ALL_HARMONICS) {
+inline Vec3T<T> gravity_accel(T x, T y, T z, unsigned mask = ALL_HARMONICS) {
     T r2 = x * x + y * y + z * z;
     T rm = std::sqrt(r2);
     T r3 = r2 * rm;
@@ -106,12 +101,12 @@ NOETHER_HD inline Vec3T<T> gravity_accel(T x, T y, T z, unsigned mask = ALL_HARM
 
 // Total energy per unit mass: H = T + Phi (the Hamiltonian of the separable system).
 template <typename T>
-NOETHER_HD inline T hamiltonian(const StateT<T>& s) {
+inline T hamiltonian(const StateT<T>& s) {
     return T(0.5) * (s.vx * s.vx + s.vy * s.vy + s.vz * s.vz) + potential(s.x, s.y, s.z);
 }
 
 template <typename T>
-NOETHER_HD inline T hamiltonian(T x, T y, T z, T vx, T vy, T vz) {
+inline T hamiltonian(T x, T y, T z, T vx, T vy, T vz) {
     return T(0.5) * (vx * vx + vy * vy + vz * vz) + potential(x, y, z);
 }
 

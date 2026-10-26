@@ -11,12 +11,6 @@ build/
 AGENTS.md
 *.log
 
-# Python (analysis layer only — never a build dependency)
-.venv/
-venv/
-__pycache__/
-*.pyc
-
 # IDE / OS
 .vscode/
 .idea/
@@ -25,11 +19,3 @@ __pycache__/
 .DS_Store
 Thumbs.db
 *:Zone.Identifier
-
-# Regeneratable demo recordings
-*.cast
-
-# LaTeX intermediates (paper/main.pdf IS committed)
-*.aux
-*.xdv
-*.synctex.gz
